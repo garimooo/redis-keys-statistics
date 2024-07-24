@@ -12,6 +12,8 @@ def main():
     parser.add_argument('--port', required=True, help='Redis port')
     parser.add_argument('--username', default=None, help='Redis username')
     parser.add_argument('--password', default=None, help='Redis password')
+    parser.add_argument('--samples', default=5,
+                        help='Redis memory usage samples')
     parser.add_argument('--cluster', action='store_true',
                         help='Enable cluster mode')
     parser.add_argument('--batch_size', type=int, default=1000,
@@ -91,7 +93,7 @@ def main():
                 if db.startswith('db'):
                     db_num = int(db[2:])
                     get_redis_keys(r, args.batch_size,
-                                   db_num, args.pretty_format)
+                                   db_num, args.pretty_format, args.samples)
 
             r.close()
 
