@@ -4,7 +4,7 @@ from .display import analyze_redis_keys
 from .analysis import update_topk_heap, update_statistics
 
 
-def get_redis_keys(r, batch_size, db_num, use_pretty):
+def get_redis_keys(r, batch_size, db_num, use_pretty, samples):
 
     r.execute_command('SELECT', db_num)
 
@@ -25,7 +25,7 @@ def get_redis_keys(r, batch_size, db_num, use_pretty):
 
             for i, key in ipairs(scanResult[2]) do
                 local key_type = redis.call('TYPE', key)['ok']
-                local memory = redis.call('MEMORY', 'USAGE', key)
+                local memory = redis.call('MEMORY', 'USAGE', key, 'SAMPLES', SAMPLES_PLACEHOLDER)
                 local ttl = redis.call('TTL', key)
 
                 table.insert(result, {key, key_type, memory, ttl})
@@ -35,6 +35,7 @@ def get_redis_keys(r, batch_size, db_num, use_pretty):
         """
 
     script = script.replace("BATCH_SIZE_PLACEHOLDER", str(batch_size))
+    script = script.replace("SAMPLES_PLACEHOLDER", str(samples))
 
     cursor = b'0'
     while True:
@@ -78,7 +79,8 @@ def get_redis_cluster_keys(rc, batch_size, replica_only, use_pretty):
     masters = []
     for node in nodes:
         if 'master' in node['flags']:
-            master_dict = {'master': node['id'], 'slots': node['slots'], 'slaves': []}
+            master_dict = {'master': node['id'],
+                           'slots': node['slots'], 'slaves': []}
             masters.append(master_dict.copy())
 
     for node in nodes:
@@ -93,9 +95,11 @@ def get_redis_cluster_keys(rc, batch_size, replica_only, use_pretty):
 
     for master in masters:
         if slave_flag is False:
-            node = next((node for node in nodes if node['id'] == master['master']), None)
+            node = next(
+                (node for node in nodes if node['id'] == master['master']), None)
         else:
-            node = next((node for node in nodes if node['id'] == master['slaves'][0]), None)
+            node = next(
+                (node for node in nodes if node['id'] == master['slaves'][0]), None)
         r = redis.Redis(host=node['host'], port=node['port'])
         r.execute_command('READONLY')
 
